@@ -23,13 +23,32 @@ Route::middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
-    Route::get('/', function () {
-        return 'This is your multi-tenant application. The id of the current tenant is ' . tenant('id');
-    });
+    Route::get('/', function (\App\Models\Tenant\Restaurant $restaurant,  \App\Models\Tenant\Menu $menu ) {
+        $restaurant = $restaurant->first();
+        $menuItems  = $menu->orderBy('id', 'DESC')->paginate(10);
+
+        return view('tenant-home', compact('restaurant', 'menuItems'));
+    })
+    ->name('tenant.home');
 
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->middleware(['auth'])->name('dashboard');
+
+    Route::prefix('restaurants/menu')->name('restaurants.menu.')->group(function(){
+        Route::get('/', \App\Http\Livewire\Tenants\RestaurantMenu\Index::class)
+                ->name('index');
+    });
+
+    Route::get('/photo/{path}', function($path) {
+        $image = str_replace('|', '/', $path);
+        $path = storage_path('app/public/' . $image);
+
+        $mimeType = \Illuminate\Support\Facades\File::mimeType($path);
+
+        return response(file_get_contents($path))->header('Content-Type', $mimeType);
+
+    })->name('server.image');
 
     require __DIR__.'/auth.php';
 });
