@@ -21,7 +21,7 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 Route::middleware([
     'web',
     InitializeTenancyByDomain::class,
-    PreventAccessFromCentralDomains::class,
+    PreventAccessFromCentralDomains::class
 ])->group(function () {
     Route::get('/', function (\App\Models\Tenant\Restaurant $restaurant,  \App\Models\Tenant\Menu $menu ) {
         $restaurant = $restaurant->first();
@@ -31,24 +31,31 @@ Route::middleware([
     })
     ->name('tenant.home');
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->middleware(['auth'])->name('dashboard');
-
-    Route::prefix('restaurants/menu')->name('restaurants.menu.')->group(function(){
-        Route::get('/', \App\Http\Livewire\Tenants\RestaurantMenu\Index::class)
-                ->name('index');
-    });
-
     Route::get('/photo/{path}', function($path) {
         $image = str_replace('|', '/', $path);
         $path = storage_path('app/public/' . $image);
+        
+        //Evita quebrar caso não tenhamos a imagem...
+        if(!file_exists($path)) abort(404);
 
         $mimeType = \Illuminate\Support\Facades\File::mimeType($path);
 
         return response(file_get_contents($path))->header('Content-Type', $mimeType);
 
     })->name('server.image');
+
+    //Middleware auth para controle de sessão admin...
+    Route::middleware('auth')->group(function() {
+    
+        Route::get('/dashboard', function () {
+            return view('dashboard');
+        })->middleware(['auth'])->name('dashboard');
+    
+        Route::prefix('restaurants/menu')->name('restaurants.menu.')->group(function(){
+            Route::get('/', \App\Http\Livewire\Tenants\RestaurantMenu\Index::class)
+                    ->name('index');
+        });
+    });
 
     require __DIR__.'/auth.php';
 });
